@@ -1,5 +1,5 @@
 import { mainService } from "../service/mainService.js";
-import NotificationService from "../service/NotificationService.js";
+import NotificationService from "../service/notificationService.js";
 
 export const dashboard = async (req, res) => {
   try {
