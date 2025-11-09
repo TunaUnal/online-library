@@ -1,0 +1,136 @@
+import fileService from "../service/fileService.js";
+import { logEvent } from "../middleware/log.js";
+export const uploadFile = async (req, res) => {
+  try {
+    const result = await fileService.uploadFile(req);
+    res.status(200).json({ data: result });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getFileById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const file = await fileService.getFileById(id);
+    if (file) {
+      res.status(200).json({ data: file });
+    } else {
+      res.status(404).json({ message: "File not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getFileByFilter = async (req, res) => {
+  const { filter } = req.query;
+  console.log(filter);
+  const options = {
+    includeUser: false,
+    includeCategory: false,
+    removeKeys: [],
+  };
+  try {
+    const files = await fileService.getFilesByFilter({ filter }, options);
+    res.status(200).json(files);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getMyFiles = async (req, res) => {
+  try {
+    const userId = req.user.id; // Assuming user ID is available in req.user
+    const filter = {
+      user_id: userId,
+    };
+    const options = {
+      includeCategory: true,
+    };
+    const files = await fileService.getFilesByFilter({ filter }, options);
+    res.status(200).json({ ...files });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateFile = async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+  try {
+    const updatedFile = await fileService.updateFile(id, updateData);
+    if (updatedFile) {
+      res.status(200).json({ data: updatedFile });
+    } else {
+      res.status(404).json({ message: "File not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+export const changeFileStatus = async (req, res) => {
+  if (!req.body.status) {
+    return res
+      .status(400)
+      .json({ message: "Bad Request: 'status' is required" });
+  }
+
+  try {
+    const updatedFile = await fileService.changeFileStatus(req);
+
+    res.status(200).json({ data: updatedFile });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getPendingFiles = async (req, res) => {
+  try {
+    const options = {
+      includeUser: true,
+      includeCategory: true,
+      removeKeys: [],
+    };
+    const filter = { status: "pending" };
+    console.log(filter);
+    const files = await fileService.getFilesByFilter({ filter }, options);
+    res.status(200).json({ ...files });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const downloadFile = async (req, res) => {
+  try {
+    const fileData = await fileService.downloadFile(req);
+
+    if (!fileData) {
+      return res.status(404).json({ message: "Dosya bulunamadı." });
+    }
+
+    const { stream: fileStream, filename: clientFilename, mimeType } = fileData;
+
+    // 1. Dosya adını URL formatına güvenle kodla
+    const encodedFilename = encodeURIComponent(clientFilename);
+    console.log("Encoded Filename:", encodedFilename);
+    console.log(mimeType);
+    // 2. SADECE modern ve çalışan Content-Disposition başlığını ayarla
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename*=UTF-8''${encodedFilename}`
+    );
+
+    // 3. Servisten gelen doğru MIME türünü ayarla
+    res.setHeader("Content-Type", mimeType);
+
+    // 4. Stream'i yanıt olarak gönder
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error("Dosya indirme hatası:", error);
+    // Hata durumunda yanıt zaten gönderilmediyse hata mesajı yolla
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Sunucu hatası: " + error.message });
+    }
+  }
+};

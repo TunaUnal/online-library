@@ -1,0 +1,7 @@
+.env
+node_modules/
+client/
+dist/
+uploads/
+logs/
+.git2/
